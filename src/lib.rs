@@ -2,7 +2,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{ItemStruct, Lit, Meta, NestedMeta, Token, parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated};
+use syn::{ItemStruct, Lit, Meta, NestedMeta, Token, parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, token::Comma};
 
 use convert_case::{Case, Casing};
 
@@ -14,31 +14,31 @@ struct TableMacroInput {
 
 impl Parse for TableMacroInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut args = Punctuated::<NestedMeta, Token![,]>::parse_separated_nonempty(input)?;
+        let args = Punctuated::<NestedMeta, Token![,]>::parse_separated_nonempty(input)?;
         let table_name = args.iter().filter_map(|nm| {
                 if let NestedMeta::Meta(Meta::NameValue(v)) = nm {
                     if v.path.get_ident() == Some(&Ident::new("table_name", Span::call_site())) {
-                        return Some(v.lit);
+                        return Some(&v.lit);
                     }
                 }
                 None
-            }).next();
+            }).next().cloned();
         let primary_key = args.iter().filter_map(|nm| {
                 if let NestedMeta::Meta(Meta::NameValue(v)) = nm {
                     if v.path.get_ident() == Some(&Ident::new("primary_key", Span::call_site())) {
-                        return Some(v.lit);
+                        return Some(&v.lit);
                     }
                 }
                 None
-            }).next();
+            }).next().cloned();
         let relations_enum = args.iter().filter_map(|nm| {
                 if let NestedMeta::Meta(Meta::NameValue(v)) = nm {
                     if v.path.get_ident() == Some(&Ident::new("relations_enum", Span::call_site())) {
-                        return Some(v.lit);
+                        return Some(&v.lit);
                     }
                 }
                 None
-            }).next();
+            }).next().cloned();
 
         Ok(TableMacroInput {
             table_name,
@@ -60,9 +60,9 @@ pub fn table(args: TokenStream, input: TokenStream) -> TokenStream {
     let mod_name = ident_to_case(&item_struct.ident, Case::Snake);
     let table_name = input.table_name.unwrap();//TODO: better error handling
     let primary_key = input.primary_key.unwrap();//TODO: better error handling
-    let mut model_struct = Vec::new();
-    let mut columns_enum = Vec::new();
-    let mut columns_trait = Vec::new();
+    let mut model_struct: Punctuated<_, Comma> = Punctuated::new();
+    let mut columns_enum: Punctuated<_, Comma> = Punctuated::new();
+    let mut columns_trait: Punctuated<_, Comma> = Punctuated::new();
     for field in item_struct.fields {
         if let Some(ident) = &field.ident {
             let field_type = &field.ty;
