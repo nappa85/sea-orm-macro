@@ -1,8 +1,8 @@
 
-#[sea_orm_macro::table]
+#[sea_orm_macro::table(table_name = "foo", primary_key = "Id", relations_enum = "Bar")]
 struct Foo {
     id: u64,
-    name: String,
+    name: Option<String>,
 }
 
 #[test]

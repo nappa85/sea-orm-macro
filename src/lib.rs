@@ -2,7 +2,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{ItemStruct, Lit, Meta, NestedMeta, Token, parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, token::Comma};
+use syn::{ItemStruct, Lit, Meta, NestedMeta, Token, Type, parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, token::Comma};
 
 use convert_case::{Case, Casing};
 
@@ -75,10 +75,12 @@ pub fn table(args: TokenStream, input: TokenStream) -> TokenStream {
                 quote! { #field_type }
             }
             else {
-                let temp = format!("{:?}", field.ty);
+                let temp = quote! { #field_type }
+                    .to_string()//Example: "Option < String >"
+                    .replace(" ", "");
                 let temp = if temp.starts_with("Option<") {
                     nullable = true;
-                    &temp[7..(temp.len() - 8)]
+                    &temp[7..(temp.len() - 1)]
                 }
                 else {
                     temp.as_str()
@@ -87,7 +89,7 @@ pub fn table(args: TokenStream, input: TokenStream) -> TokenStream {
                     "String" | "&str" => quote! { String(None) },
                     "u8" | "u16" | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" => quote! { Integer },
                     "NaiveDateTime" => quote! { DateTime },
-                    _ => unreachable!(),//TODO: better error handling
+                    _ => unreachable!(temp),//TODO: better error handling
                 }
             };
             if nullable {
