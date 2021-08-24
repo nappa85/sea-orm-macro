@@ -2,7 +2,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{ItemStruct, Lit, Meta, NestedMeta, Token, Type, parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, token::Comma};
+use syn::{ItemStruct, Lit, Meta, NestedMeta, Token, parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, token::Comma};
 
 use convert_case::{Case, Casing};
 
@@ -93,10 +93,10 @@ pub fn table(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             };
             if nullable {
-                columns_trait.push(quote! { Self::#field_name => ColumnType::#field_type.def().null() });
+                columns_trait.push(quote! { Self::#field_name => ColumnType::#field_type.def().null(), });
             }
             else {
-                columns_trait.push(quote! { Self::#field_name => ColumnType::#field_type.def() });
+                columns_trait.push(quote! { Self::#field_name => ColumnType::#field_type.def(), });
             }
         }
     }
