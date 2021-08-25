@@ -1,8 +1,8 @@
 
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Span};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Meta, parse_macro_input, punctuated::Punctuated, token::Comma};
+use syn::{Data, DeriveInput, Fields, Lit, Meta, parse_macro_input, punctuated::Punctuated, token::Comma};
 
 use convert_case::{Case, Casing};
 
@@ -24,11 +24,12 @@ pub fn derive_auto_column(input: TokenStream) -> TokenStream {
             return None;
         }
 
-        let list: Meta = attr.parse_args().ok()?;
-        if let Meta::NameValue(nv) = &list {
-            if nv.path.get_ident()? == "table_name" {
-                let table_name = &nv.lit;
-                return Some(quote! {
+        let list = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated).ok()?;
+        for meta in list.iter() {
+            if let Meta::NameValue(nv) = meta {
+                if nv.path.get_ident()? == "table_name" {
+                    let table_name = &nv.lit;
+                    return Some(quote! {
 #[derive(Copy, Clone, Default, Debug, sea_orm::prelude::DeriveEntity)]
 pub struct Entity;
 
@@ -37,7 +38,8 @@ impl sea_orm::prelude::EntityName for Entity {
         #table_name
     }
 }
-                });
+                    });
+                }
             }
         }
 
@@ -52,13 +54,12 @@ impl sea_orm::prelude::EntityName for Entity {
         if let Fields::Named(fields) = item_struct.fields {
             for field in fields.named {
                 if let Some(ident) = &field.ident {
-                    let field_type = &field.ty;
                     let field_name = ident_to_case(ident, Case::Pascal);
                     columns_enum.push(quote! { #field_name });
 
                     let mut nullable = false;
                     let mut sql_type = None;
-                    // search for #[auto_column(type = "bar")]
+                    // search for #[auto_column(primary_key, type = String, nullable)]
                     field.attrs.iter().for_each(|attr| {
                         if let Some(ident) = attr.path.get_ident() {
                             if ident != "auto_column" {
@@ -69,28 +70,37 @@ impl sea_orm::prelude::EntityName for Entity {
                             return;
                         }
 
-                        if let Ok(list) = attr.parse_args() {
-                            match &list {
-                                Meta::NameValue(nv) => {
-                                    if let Some(name) = nv.path.get_ident() {
-                                        if name == "type" {
-                                            let ty = &nv.lit;
-                                            sql_type = Some(quote! { #ty });
+                        // single param
+                        if let Ok(list) = attr.parse_args_with(Punctuated::<Meta, Comma>::parse_terminated) {
+                            for meta in list.iter() {
+                                match meta {
+                                    Meta::NameValue(nv) => {
+                                        if let Some(name) = nv.path.get_ident() {
+                                            if name == "type" {
+                                                if let Lit::Str(litstr) = &nv.lit {
+                                                    let ty: TokenStream2 = syn::parse_str(&litstr.value()).unwrap();
+                                                    sql_type = Some(ty);
+                                                }
+                                            }
                                         }
-                                    }
-                                },
-                                Meta::Path(p) => {
-                                    if let Some(name) = p.get_ident() {
-                                        if name == "primary_key" {
-                                            primary_keys.push(quote! { #field_name });
+                                    },
+                                    Meta::Path(p) => {
+                                        if let Some(name) = p.get_ident() {
+                                            if name == "primary_key" {
+                                                primary_keys.push(quote! { #field_name });
+                                            }
+                                            else if name == "nullable" {
+                                                nullable = true;
+                                            }
                                         }
-                                    }
-                                },
-                                _ => {},
+                                    },
+                                    _ => {},
+                                }
                             }
                         }
                     });
                     let field_type = sql_type.unwrap_or_else(|| {
+                        let field_type = &field.ty;
                         let temp = quote! { #field_type }
                             .to_string()//Example: "Option < String >"
                             .replace(" ", "");
@@ -101,7 +111,7 @@ impl sea_orm::prelude::EntityName for Entity {
                         else {
                             temp.as_str()
                         };
-                        match temp {//TODO: expand match
+                        match temp {
                             "char" => quote! { Char(None) },
                             "String" | "&str" => quote! { String(None) },
                             "u8" | "i8" => quote! { TinyInteger },
@@ -115,7 +125,7 @@ impl sea_orm::prelude::EntityName for Entity {
                             "NaiveTime" => quote! { Time },
                             "NaiveDateTime" => quote! { DateTime },
                             "Uuid" => quote! { Uuid },
-                            _ => panic!("unrecognized type {}", temp),//TODO: better error handling
+                            _ => panic!("unrecognized type {}", temp),
                         }
                     });
 

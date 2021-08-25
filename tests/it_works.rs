@@ -9,7 +9,7 @@ use sea_orm::prelude::*;
 pub struct Model {
     #[auto_column(primary_key)]
     id: u64,
-    #[auto_column(type = String(255), nullable)]
+    #[auto_column(type = "String(Some(255))", nullable)]
     name: Option<String>,
 }
 
