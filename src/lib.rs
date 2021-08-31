@@ -125,6 +125,7 @@ impl sea_orm::prelude::EntityName for Entity {
                             "NaiveTime" => quote! { Time },
                             "NaiveDateTime" => quote! { DateTime },
                             "Uuid" => quote! { Uuid },
+                            "Decimal" => quote! { BigInteger },
                             _ => panic!("unrecognized type {}", temp),
                         }
                     });
