@@ -95,8 +95,10 @@ use sea_orm_macro::AutoColumn;
 struct Model {
     #[auto_column(primary_key)]
     id: u64,
+    #[auto_column(type = "String(Some(255))")]
+    name: MyName,
     #[auto_column(type = "Char(Some(1))", nullable)]
-    name: MyType,
+    admin: Option<MyBool>,
 }
 ```
 this will autogenerate the Column enum, like this
@@ -105,6 +107,7 @@ this will autogenerate the Column enum, like this
 enum Column {
     Id,
     Name,
+    Admin,
 }
 
 impl sea_orm::prelude::ColumnTrait for Column {
@@ -113,7 +116,8 @@ impl sea_orm::prelude::ColumnTrait for Column {
     fn def(&self) -> sea_orm::prelude::ColumnDef {
         match self {
             Column::Id => sea_orm::prelude::ColumnType::Integer.def(),
-            Column::Name => sea_orm::prelude::ColumnType::Char(Some(1)).def(),
+            Column::Name => sea_orm::prelude::ColumnType::String(Some(2555)).def()
+            Column::Admin => sea_orm::prelude::ColumnType::Char(Some(1)).def().null(),
         }
     }
 }
@@ -127,7 +131,7 @@ use sea_orm_macro::AutoColumn;
 struct Model {
     #[auto_column(primary_key)]
     id: u64,
-    #[auto_column(type = "String(Some(255))", nullable)]
+    #[auto_column(type = "String(Some(255))")]
     name: String,
 }
 ```
