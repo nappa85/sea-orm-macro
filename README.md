@@ -58,7 +58,7 @@ impl PrimaryKeyTrait for PrimaryKey {
     }
 }
 ```
-if you have more than one primary key, the auto_increment methos will automatically turn to false
+if you have more than one primary key, the auto_increment method will automatically return false
 ```rust
 use sea_orm_macro::AutoColumn;
 
